@@ -3,13 +3,18 @@ from collections.abc import Iterator
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker, with_loader_criteria
+from sqlalchemy.pool import StaticPool
 
 from app.config import get_settings
 
 
 def make_engine(url: str) -> Engine:
     if url.startswith("sqlite"):
-        engine = create_engine(url, connect_args={"check_same_thread": False})
+        in_memory = url in ("sqlite://", "sqlite:///:memory:")
+        # An in-memory database lives in one connection, so every thread has to share it.
+        engine = create_engine(
+            url, connect_args={"check_same_thread": False}, **({"poolclass": StaticPool} if in_memory else {})
+        )
 
         @event.listens_for(engine, "connect")
         def _sqlite_pragmas(dbapi_connection, _record) -> None:

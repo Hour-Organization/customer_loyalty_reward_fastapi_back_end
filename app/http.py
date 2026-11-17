@@ -264,3 +264,20 @@ def until_day(column: Any, value: Any) -> Any:
     from app.validation import parse_date
 
     return column < datetime.combine(parse_date(value) + timedelta(days=1), datetime.min.time())
+
+
+def update_route(router: Any, path: str, methods: tuple[str, ...] = ("PUT", "PATCH", "POST")) -> Callable:
+    """Register an update for each method, with its own operation id. POST is the multipart `_method` alias."""
+
+    def register(handler: Callable) -> Callable:
+        for method in methods:
+            router.add_api_route(
+                path,
+                handler,
+                methods=[method],
+                operation_id=f"{handler.__name__}_{method.lower()}",
+                include_in_schema=method != "POST",
+            )
+        return handler
+
+    return register

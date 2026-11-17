@@ -8,7 +8,17 @@ from sqlalchemy.orm import selectinload
 
 from app.auth import Db, SuperAdmin, pages, revoke_tokens
 from app.http import Input, attempt, find_or_404, ok, page_of
-from app.models import ActivityLog, Customer, LoyaltyTransaction, Order, Redemption, Referral, Setting, Tier, User
+from app.models import (
+    ActivityLog,
+    Customer,
+    LoyaltyTransaction,
+    Order,
+    Redemption,
+    Referral,
+    Setting,
+    Tier,
+    User,
+)
 from app.services import loyalty, orders
 from app.services.records import log_activity, put_setting
 from app.shapes import customer_api

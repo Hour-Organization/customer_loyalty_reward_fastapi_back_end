@@ -12,7 +12,14 @@ from sqlalchemy.orm import Session, selectinload
 
 from app import clock
 from app.auth import random_string
-from app.models import Redemption, Reward, RewardStockItem, RewardStockMovement, StockLocation, User
+from app.models import (
+    Redemption,
+    Reward,
+    RewardStockItem,
+    RewardStockMovement,
+    StockLocation,
+    User,
+)
 from app.validation import fail as _fail
 
 Level = dict[str, Any]

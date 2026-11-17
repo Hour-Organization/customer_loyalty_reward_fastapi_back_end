@@ -10,7 +10,18 @@ from sqlalchemy.orm import Session, selectinload
 
 from app import clock
 from app.auth import Db, SuperAdmin, hash_password, revoke_tokens
-from app.http import Input, attempt, done, find_or_404, method_of, ok, page_of, presence, refuse
+from app.http import (
+    Input,
+    attempt,
+    done,
+    find_or_404,
+    method_of,
+    ok,
+    page_of,
+    presence,
+    refuse,
+    update_route,
+)
 from app.models import Role, User
 from app.services.records import log_staff_change
 from app.shapes import counts
@@ -108,7 +119,7 @@ def show_role(role_id: int, db: Db, staff: SuperAdmin):
     return ok(role_api(db, find_or_404(db, Role, role_id)), "Role retrieved successfully")
 
 
-@router.api_route("/roles/{role_id:int}", methods=["PUT", "PATCH", "POST"])
+@update_route(router, "/roles/{role_id:int}")
 @attempt("Could not update the role.")
 def update_role(role_id: int, request: Request, db: Db, staff: SuperAdmin, data: Input):
     role = find_or_404(db, Role, role_id)
@@ -232,7 +243,7 @@ def show_user(user_id: int, db: Db, staff: SuperAdmin):
     return ok(user_response(db, user_id), "User retrieved successfully")
 
 
-@router.api_route("/users/{user_id:int}", methods=["PUT", "PATCH", "POST"])
+@update_route(router, "/users/{user_id:int}")
 @attempt("Could not update the staff user.")
 def update_user(user_id: int, request: Request, db: Db, staff: SuperAdmin, data: Input):
     user = find_or_404(db, User, user_id)

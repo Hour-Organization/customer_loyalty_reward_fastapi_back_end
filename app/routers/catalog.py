@@ -8,7 +8,19 @@ from sqlalchemy.orm import Session, selectinload
 
 from app import clock, storage
 from app.auth import Db, pages, random_string
-from app.http import Input, attempt, done, find_or_404, method_of, ok, page_of, presence, refuse, uploads
+from app.http import (
+    Input,
+    attempt,
+    done,
+    find_or_404,
+    method_of,
+    ok,
+    page_of,
+    presence,
+    refuse,
+    update_route,
+    uploads,
+)
 from app.models import Category, Product, ProductImage, User
 from app.services import product_stock
 from app.services.records import log_staff_change
@@ -114,7 +126,7 @@ def show_category(category_id: int, db: Db, staff: CategoriesStaff):
     return ok(category_api(db, find_or_404(db, Category, category_id)), "Category retrieved successfully")
 
 
-@router.api_route("/categories/{category_id:int}", methods=["PUT", "PATCH", "POST"])
+@update_route(router, "/categories/{category_id:int}")
 @attempt("Could not update the category.")
 def update_category(category_id: int, request: Request, db: Db, staff: CategoriesStaff, data: Input):
     category = find_or_404(db, Category, category_id)
@@ -305,7 +317,7 @@ def show_product(product_id: int, db: Db, staff: ProductsStaff):
     return ok(load_product(db, product_id).to_api(), "Product retrieved successfully")
 
 
-@router.api_route("/products/{product_id:int}", methods=["PUT", "PATCH", "POST"])
+@update_route(router, "/products/{product_id:int}")
 @attempt("Could not update the product.")
 def update_product(product_id: int, request: Request, db: Db, staff: ProductsStaff, data: Input):
     product = load_product(db, product_id)

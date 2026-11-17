@@ -8,7 +8,16 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app import clock
-from app.models import Address, Customer, Order, OrderItem, Payment, Product, Shipment, User
+from app.models import (
+    Address,
+    Customer,
+    Order,
+    OrderItem,
+    Payment,
+    Product,
+    Shipment,
+    User,
+)
 from app.serial import iso, num
 from app.services import loyalty, product_stock
 from app.services.records import log_activity

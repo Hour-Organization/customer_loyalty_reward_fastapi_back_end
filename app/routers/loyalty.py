@@ -8,13 +8,45 @@ from sqlalchemy.orm import Session, selectinload
 
 from app import storage
 from app.auth import Db, pages
-from app.http import Input, attempt, done, find_or_404, method_of, ok, page_of, presence, refuse, respond, uploads
-from app.models import Badge, Campaign, Customer, CustomerBadge, Redemption, Reward, RewardStockMovement, Tier, TierHistory, User
+from app.http import (
+    Input,
+    attempt,
+    done,
+    find_or_404,
+    method_of,
+    ok,
+    page_of,
+    presence,
+    refuse,
+    update_route,
+    uploads,
+)
+from app.models import (
+    Badge,
+    Campaign,
+    Customer,
+    CustomerBadge,
+    Redemption,
+    Reward,
+    RewardStockMovement,
+    Tier,
+    TierHistory,
+    User,
+)
 from app.services import stock_ledger
 from app.services.loyalty import live_campaigns
 from app.services.records import log_staff_change
 from app.shapes import counts, reward_api, reward_with_stock
-from app.validation import Exists, In, Regex, Unique, Validator, parse_date, to_bool, validate
+from app.validation import (
+    Exists,
+    In,
+    Regex,
+    Unique,
+    Validator,
+    parse_date,
+    to_bool,
+    validate,
+)
 
 router = APIRouter(prefix="/backend", tags=["loyalty setup"])
 public_router = APIRouter(tags=["storefront"])
@@ -117,7 +149,7 @@ def show_tier(tier_id: int, db: Db, staff: TiersStaff):
     return ok(tier_api(db, find_or_404(db, Tier, tier_id)), "Tier retrieved successfully")
 
 
-@router.api_route("/tiers/{tier_id:int}", methods=["PUT", "PATCH", "POST"])
+@update_route(router, "/tiers/{tier_id:int}")
 @attempt("Could not update the tier.")
 def update_tier(tier_id: int, request: Request, db: Db, staff: TiersStaff, data: Input):
     tier = find_or_404(db, Tier, tier_id)
@@ -213,7 +245,7 @@ def show_badge(badge_id: int, db: Db, staff: BadgesStaff):
     return ok(badge_api(db, find_or_404(db, Badge, badge_id)), "Badge retrieved successfully")
 
 
-@router.api_route("/badges/{badge_id:int}", methods=["PUT", "PATCH", "POST"])
+@update_route(router, "/badges/{badge_id:int}")
 @attempt("Could not update the badge.")
 def update_badge(badge_id: int, request: Request, db: Db, staff: BadgesStaff, data: Input):
     badge = find_or_404(db, Badge, badge_id)
@@ -321,7 +353,7 @@ def show_campaign(campaign_id: int, db: Db, staff: CampaignsStaff):
     return ok(find_or_404(db, Campaign, campaign_id).to_array(), "Campaign retrieved successfully")
 
 
-@router.api_route("/campaigns/{campaign_id:int}", methods=["PUT", "PATCH", "POST"])
+@update_route(router, "/campaigns/{campaign_id:int}")
 @attempt("Could not update the campaign.")
 def update_campaign(campaign_id: int, request: Request, db: Db, staff: CampaignsStaff, data: Input):
     campaign = find_or_404(db, Campaign, campaign_id)
@@ -439,7 +471,7 @@ def show_reward(reward_id: int, db: Db, staff: RewardsStaff):
     return ok(reward_with_stock(db, find_or_404(db, Reward, reward_id)), "Reward retrieved successfully")
 
 
-@router.api_route("/rewards/{reward_id:int}", methods=["PUT", "PATCH", "POST"])
+@update_route(router, "/rewards/{reward_id:int}")
 @attempt("Could not update the reward.")
 def update_reward(reward_id: int, request: Request, db: Db, staff: RewardsStaff, data: Input):
     reward = find_or_404(db, Reward, reward_id)
@@ -487,4 +519,3 @@ def delete_reward(reward_id: int, db: Db, staff: RewardsStaff):
 
 
 routers = [router, public_router]
-_ = respond

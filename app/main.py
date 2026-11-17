@@ -52,7 +52,17 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
-    from app.routers import account, auth, catalog, loyalty, operations, points, staff, stock, storefront
+    from app.routers import (
+        account,
+        auth,
+        catalog,
+        loyalty,
+        operations,
+        points,
+        staff,
+        stock,
+        storefront,
+    )
 
     settings = get_settings()
     app = FastAPI(

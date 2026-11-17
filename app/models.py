@@ -26,7 +26,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from app import clock
-from app.serial import day, dec, file_url, iso, is_external, num, stamp
+from app.serial import day, dec, file_url, is_external, iso, num, stamp
 
 
 class Base(DeclarativeBase):

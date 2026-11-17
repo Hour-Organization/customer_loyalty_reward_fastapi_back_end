@@ -1,0 +1,33 @@
+services:
+  api:
+    build: .
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://root:root@pgsql:5432/customer_loyalty
+      STORAGE_DIR: /app/storage/public
+      APP_DEBUG: "true"
+    volumes:
+      - storage:/app/storage
+    depends_on:
+      pgsql:
+        condition: service_healthy
+
+  pgsql:
+    image: postgres:17
+    ports:
+      - "${FORWARD_DB_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: customer_loyalty
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+    volumes:
+      - pgsql:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-d", "customer_loyalty", "-U", "root"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pgsql:
+  storage:

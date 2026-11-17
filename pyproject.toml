@@ -23,4 +23,10 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q -p no:warnings"
+
+[tool.ruff]
+line-length = 130
+
+[tool.ruff.lint.isort]
+known-third-party = ["alembic"]
