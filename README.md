@@ -43,7 +43,8 @@ docker compose up --build
 
 The `api` service migrates on start and seeds the demo data into an empty database, so registration and the
 demo logins work straight away. Existing data is left alone. The image on its own only migrates, so a
-deployment never gets the demo accounts.
+deployment never gets the demo accounts unless it sets `STARTUP_TASK=setup`. The image listens on `$PORT`
+(default 8000), which hosts such as Render set for you.
 
 ## Commands
 
