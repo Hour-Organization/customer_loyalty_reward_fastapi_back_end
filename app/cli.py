@@ -5,6 +5,9 @@
     fresh                drop every table, migrate and seed
     setup                migrate, and seed the demo data if the database has none yet (docker compose runs this)
     expire-redemptions   refund reservations whose time ran out (the scheduler runs this every 5 minutes)
+    expire-payments      cancel orders whose KHQR was left unpaid, and mark late KHQR payments for a refund
+                         (the scheduler runs this every 5 minutes)
+    check-bakong         check the Bakong settings: the token works and the shop's account exists
 """
 
 import argparse
@@ -72,7 +75,44 @@ def expire_redemptions() -> None:
     print(f"{expired} reservations expired.")
 
 
-COMMANDS = {"migrate": migrate, "seed": seed, "fresh": fresh, "setup": setup, "expire-redemptions": expire_redemptions}
+def expire_payments() -> None:
+    from app.database import SessionLocal
+    from app.services.payments import catch_late, expire_overdue
+
+    with SessionLocal() as db:
+        expired = expire_overdue(db)
+        late = catch_late(db)
+        db.commit()
+    print(f"{expired} KHQR payments expired. {late} late KHQR payments found (refund due).")
+
+
+def check_bakong() -> None:
+    from app.config import get_settings
+    from app.services.payments import BakongKhqr, ProviderUnavailable
+
+    provider = BakongKhqr()
+    problem = provider.ready()
+    if problem:
+        sys.exit(f"Not ready: {problem}")
+    account = get_settings().bakong_account_id.strip()
+    try:
+        body = provider.call("/v1/check_bakong_account", {"accountId": account})
+    except ProviderUnavailable as error:
+        sys.exit(f"Could not use the Bakong Open API: {error}")
+    if body.get("responseCode") != 0:
+        sys.exit(f"Bakong does not know the account {account}: {body.get('responseMessage')}")
+    print(f"Bakong is ready: the token works and {account} exists.")
+
+
+COMMANDS = {
+    "migrate": migrate,
+    "seed": seed,
+    "fresh": fresh,
+    "setup": setup,
+    "expire-redemptions": expire_redemptions,
+    "expire-payments": expire_payments,
+    "check-bakong": check_bakong,
+}
 
 
 def main(argv: list[str] | None = None) -> None:

@@ -1,16 +1,17 @@
-"""The signed-in customer: their account, profile, checkout, redemptions and restock requests."""
+"""The signed-in customer: their account, profile, checkout and its payment, redemptions and restock requests."""
 
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.auth import Db, Shopper
-from app.http import Input, attempt, done, ok
-from app.models import Order, Redemption, Referral, RestockRequest, Reward, TierHistory
-from app.services import orders, redemptions
+from app.http import Input, attempt, done, not_found, ok
+from app.models import Order, Payment, Redemption, Referral, RestockRequest, Reward, TierHistory
+from app.services import orders, payments, redemptions
+from app.services.payments import FakeKhqr
 from app.services.records import log_activity
 from app.shapes import customer_api
-from app.validation import Regex, ValidationError, validate
+from app.validation import In, Regex, ValidationError, validate
 
 router = APIRouter(tags=["customer account"])
 
@@ -100,6 +101,7 @@ def checkout(db: Db, customer: Shopper, data: Input):
             "items.*.quantity": ["required", "integer", "min:1", "max:1000"],
             "address": ["required", "string", "max:255"],
             "phone": ["required", "string", Regex(r"^\+?\d[\d\s-]{7,14}$")],
+            "payment_method": ["nullable", In(Payment.METHODS)],
         },
         {
             "items.required": "Your cart is empty.",
@@ -107,11 +109,48 @@ def checkout(db: Db, customer: Shopper, data: Input):
             "address.required": "Enter a delivery address and phone number.",
             "phone.required": "Enter a delivery address and phone number.",
             "phone.regex": "Enter a valid phone number.",
+            "payment_method.in": "Choose cash on delivery or KHQR.",
         },
     )
-    order = orders.place(db, customer, fields["items"], fields["address"], fields["phone"])
+    method = fields.get("payment_method") or Payment.CASH_ON_DELIVERY
+    order = orders.place(db, customer, fields["items"], fields["address"], fields["phone"], method)
     db.commit()
     return ok(orders.to_api(db, order), "Order placed successfully", 201)
+
+
+def _own_order(db: Db, customer: Shopper, order_id: int) -> Order:
+    order = db.scalars(
+        select(Order).options(*orders.with_relations()).where(Order.id == order_id, Order.customer_id == customer.id)
+    ).first()
+    if order is None:
+        raise not_found("Order")
+    return order
+
+
+@router.get("/orders/{order_id:int}/payment")
+@attempt("Could not check the payment.")
+def payment_status(order_id: int, db: Db, customer: Shopper):
+    """The order with its payment brought up to date: the page showing the KHQR polls this."""
+    order = _own_order(db, customer, order_id)
+    payments.refresh(db, order)
+    db.commit()
+    db.refresh(order)
+    return ok(orders.to_api(db, order), "Payment retrieved successfully")
+
+
+@router.post("/orders/{order_id:int}/payment/simulate")
+@attempt("Could not simulate the payment.")
+def simulate_payment(order_id: int, db: Db, customer: Shopper):
+    """Development only: pay the order's KHQR as a banking app would. Missing unless the fake provider is on."""
+    if payments.configured() != FakeKhqr.name:
+        raise HTTPException(404)
+    order = _own_order(db, customer, order_id)
+    if order.payment and order.payment.provider == FakeKhqr.name and order.payment.provider_ref:
+        FakeKhqr.pay(order.payment.provider_ref)
+    payments.refresh(db, order)
+    db.commit()
+    db.refresh(order)
+    return ok(orders.to_api(db, order), "Payment simulated successfully")
 
 
 @router.post("/redemptions", status_code=201)

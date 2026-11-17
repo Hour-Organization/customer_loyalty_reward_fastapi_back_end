@@ -30,9 +30,35 @@ class Settings(BaseSettings):
     # Comma-separated origins allowed to call the API from a browser.
     cors_origins: str = "*"
 
-    # Expire overdue redemptions in the background every this many seconds (0 turns it off).
+    # Expire overdue redemptions and unpaid KHQR payments in the background every this many seconds
+    # (0 turns it off).
     # A unit suffix is allowed: "90s", "5m", "1h".
     expire_redemptions_every: int = 300
+
+    # Who settles KHQR payments: "" (KHQR checkout is off), "fake" (development and tests: paid through
+    # POST /orders/{id}/payment/simulate) or "bakong".
+    payment_provider: str = ""
+    # A KHQR left unpaid this many minutes expires, cancelling the order and returning its stock.
+    khqr_payment_minutes: int = 15
+    # If the provider cannot be reached when a KHQR runs out, wait this many minutes more before expiring
+    # it unchecked (the late-payment check below still catches a payment made in time).
+    khqr_unreachable_grace_minutes: int = 60
+    # Keep asking about cancelled or expired KHQRs for this many minutes after their time limit, so a
+    # payment that arrives after the order was closed is marked REFUND_DUE rather than lost.
+    khqr_late_check_minutes: int = 30
+
+    # Bakong Open API (provider "bakong"). The token comes from registering an email with Bakong
+    # (POST /v1/request_token, then /v1/verify) and lasts about 90 days; renew it with /v1/renew_token.
+    bakong_api_url: str = "https://api-bakong.nbc.gov.kh"
+    bakong_token: str = ""
+    # The shop's Bakong account (e.g. "shop@aclb"), and the name (max 25) and city (max 15) banking apps show.
+    bakong_account_id: str = ""
+    bakong_merchant_name: str = ""
+    bakong_merchant_city: str = "Phnom Penh"
+    # Only for a corporate merchant KHQR (tag 30): the merchant id and acquiring bank the bank issued.
+    bakong_merchant_id: str = ""
+    bakong_acquiring_bank: str = ""
+    bakong_timeout_seconds: float = 10
 
     @field_validator("expire_redemptions_every", mode="before")
     @classmethod

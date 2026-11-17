@@ -622,15 +622,35 @@ class Payment(Timestamps, Base):
     __tablename__ = "payments"
 
     CASH_ON_DELIVERY = "CASH_ON_DELIVERY"
+    KHQR = "KHQR"
+    METHODS = (CASH_ON_DELIVERY, KHQR)
+
     PENDING = "PENDING"
     PAID = "PAID"
     CANCELLED = "CANCELLED"
+    # Online payments only: the provider refused it, the QR ran out unpaid, or a paid order was cancelled.
+    FAILED = "FAILED"
+    EXPIRED = "EXPIRED"
+    REFUND_DUE = "REFUND_DUE"
 
     order_id: Mapped[int] = fk("orders.id", "CASCADE")
     method: Mapped[str] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(255))
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     paid_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # Online payments only. `provider_ref` is what the provider knows the payment by (the KHQR's MD5 for
+    # Bakong), `qr_payload` the KHQR string the customer scans.
+    provider: Mapped[str | None] = mapped_column(String(255))
+    provider_ref: Mapped[str | None] = mapped_column(String(255), unique=True, index=True)
+    currency: Mapped[str] = mapped_column(String(3), default="USD", server_default="USD")
+    qr_payload: Mapped[str | None] = mapped_column(Text)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    def is_online(self) -> bool:
+        return self.method != self.CASH_ON_DELIVERY
+
+    def awaiting_online(self) -> bool:
+        return self.is_online() and self.status == self.PENDING
 
 
 class Shipment(Timestamps, Base):

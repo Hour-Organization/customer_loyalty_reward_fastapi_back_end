@@ -9,6 +9,8 @@ the same routes under `/api`, the same JSON shapes (decimals as strings such as 
 messages, and Laravel's error format `{"message": "...", "errors": {"field": ["..."]}}`. The frontend in
 `customer_loyalty_reward_fastapi_front_end` works against it unchanged.
 
+Before changing code, read [CLAUDE.md](CLAUDE.md): the fixed HTTP contract, the commands and the code conventions.
+
 ## Run it
 
 Python 3.12 or newer.
@@ -52,11 +54,21 @@ deployment never gets the demo accounts.
 | `python -m app.cli fresh` | Drop every table, migrate and seed |
 | `python -m app.cli setup` | Migrate, then seed only if there are no tiers yet (what `docker compose` runs) |
 | `python -m app.cli expire-redemptions` | Refund reservations whose time ran out |
+| `python -m app.cli expire-payments` | Cancel orders whose KHQR ran out unpaid; mark late KHQR payments `REFUND_DUE` |
+| `python -m app.cli check-bakong` | Check the Bakong settings: the token works and the shop's account exists |
 | `pytest` | Run the tests (in-memory SQLite) |
 | `ruff check app tests` | Lint |
 
 The server also expires overdue reservations itself every 5 minutes (`EXPIRE_REDEMPTIONS_EVERY`), as the
-Laravel scheduler did.
+Laravel scheduler did, and runs `expire-payments` on the same schedule.
+
+### KHQR payments
+
+`POST /checkout` takes `payment_method: "KHQR"` when `PAYMENT_PROVIDER` is set (see `.env.example`). The order
+comes back with a dynamic KHQR in `payment.qr`; `GET /orders/{id}/payment` asks the provider whether it was
+paid, which confirms the order, or cancels it once the QR runs out. Points are still paid when the order
+completes. Only the server marks a payment paid: with `bakong` it asks the Bakong Open API by the QR's MD5 and
+checks the account, currency and amount. `fake` is for development: `POST /orders/{id}/payment/simulate` pays it.
 
 After changing a model, add a migration with
 `alembic revision --autogenerate -m "what changed"` and check the generated file.

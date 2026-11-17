@@ -9,6 +9,8 @@ services:
       DATABASE_URL: postgresql+psycopg://root:root@pgsql:5432/customer_loyalty
       STORAGE_DIR: /app/storage/public
       APP_DEBUG: "true"
+      # KHQR checkout settled through POST /api/orders/{id}/payment/simulate until Bakong is set up.
+      PAYMENT_PROVIDER: fake
     volumes:
       - storage:/app/storage
     depends_on:

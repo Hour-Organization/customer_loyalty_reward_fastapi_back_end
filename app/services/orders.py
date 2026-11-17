@@ -19,13 +19,22 @@ from app.models import (
     User,
 )
 from app.serial import iso, num
-from app.services import loyalty, product_stock
+from app.services import loyalty, payments, product_stock
 from app.services.records import log_activity
 from app.validation import fail
 
 
-def place(db: Session, customer: Customer, lines: list[dict[str, Any]], address: str, phone: str) -> Order:
-    """Price the cart from the catalog, take the stock and open a cash-on-delivery order."""
+def place(
+    db: Session,
+    customer: Customer,
+    lines: list[dict[str, Any]],
+    address: str,
+    phone: str,
+    method: str = Payment.CASH_ON_DELIVERY,
+) -> Order:
+    """Price the cart from the catalog, take the stock and open the order with its payment: cash on
+    delivery, or a KHQR the customer has `khqr_payment_minutes` to pay."""
+    payments.ensure_available(method)
     quantities: OrderedDict[int, int] = OrderedDict()
     for line in lines:
         product_id = int(line["product_id"])
@@ -72,7 +81,10 @@ def place(db: Session, customer: Customer, lines: list[dict[str, Any]], address:
                 bonus_multiplier=product.bonus_multiplier,
             )
         )
-    db.add(Payment(order_id=order.id, method=Payment.CASH_ON_DELIVERY, status=Payment.PENDING, amount=total))
+    payment = Payment(order_id=order.id, method=method, status=Payment.PENDING, amount=total, currency="USD")
+    if payment.is_online():
+        payments.start(order, payment)
+    db.add(payment)
     db.flush()
     log_activity(db, "ORDER_CREATED", f"Created order {order.reference()} for ${total:.2f}", customer)
     db.refresh(order)
@@ -85,16 +97,16 @@ def transition(db: Session, order: Order, status: str, staff: User) -> Order:
     db.refresh(order, with_for_update=True)
     if status not in Order.TRANSITIONS.get(order.status, []):
         fail("status", f"{order.reference()} is {order.status} and cannot become {status}.")
-    order.status = status
+    if status == Order.CONFIRMED and order.payment and order.payment.awaiting_online():
+        fail("status", f"{order.reference()} is waiting for its KHQR payment.")
+    if status == Order.CANCELLED:
+        cancel(db, order)
+    else:
+        order.status = status
     if status == Order.SHIPPED:
         db.add(Shipment(order_id=order.id, status=Shipment.SHIPPED, shipped_at=clock.now()))
-    elif status == Order.CANCELLED:
-        for item in order.items:
-            product_stock.put_back(db, _product(db, item.product_id), item.quantity, order)
-        if order.payment:
-            order.payment.status = Payment.CANCELLED
     elif status == Order.COMPLETED:
-        if order.payment:
+        if order.payment and order.payment.status != Payment.PAID:
             order.payment.status = Payment.PAID
             order.payment.paid_at = clock.now()
         db.execute(update(Shipment).where(Shipment.order_id == order.id).values(status=Shipment.DELIVERED))
@@ -103,6 +115,14 @@ def transition(db: Session, order: Order, status: str, staff: User) -> Order:
     log_activity(db, f"ORDER_{status}", f"Order {order.reference()} {status.lower()}", order.customer, staff)
     db.refresh(order)
     return order
+
+
+def cancel(db: Session, order: Order) -> None:
+    """Cancel the order: its stock goes back, and its payment is cancelled or, if paid online, owed back."""
+    order.status = Order.CANCELLED
+    for item in order.items:
+        product_stock.put_back(db, _product(db, item.product_id), item.quantity, order)
+    payments.on_cancel(order.payment)
 
 
 def _product(db: Session, product_id: int) -> Product:
@@ -138,7 +158,7 @@ def to_api(db: Session, order: Order) -> dict[str, Any]:
         "ordered_at": iso(order.ordered_at),
         "delivery_address": order.address.street if order.address else None,
         "delivery_phone": order.delivery_phone,
-        "payment": {"method": payment.method, "status": payment.status} if payment else None,
+        "payment": payments.to_api(payment),
         "shipment": (
             {"carrier": shipment.carrier, "tracking_no": shipment.tracking_no, "status": shipment.status} if shipment else None
         ),

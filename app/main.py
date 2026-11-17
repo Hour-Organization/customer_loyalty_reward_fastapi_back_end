@@ -19,31 +19,38 @@ from app.validation import ValidationError
 log = logging.getLogger("app")
 
 
-async def _expire_redemptions_forever(every: int) -> None:
-    """Refund redemptions whose reservation ran out, like the Laravel scheduler's redemptions:expire."""
+async def _expire_overdue_forever(every: int) -> None:
+    """Refund redemptions whose reservation ran out, like the Laravel scheduler's redemptions:expire, and
+    cancel orders whose KHQR was left unpaid, and catch KHQR payments that arrived after their order closed."""
     from app.database import SessionLocal
-    from app.services.redemptions import expire_overdue
+    from app.services import payments, redemptions
 
-    def run_once() -> int:
+    def run_once(expire) -> int:
         with SessionLocal() as db:
-            expired = expire_overdue(db)
+            expired = expire(db)
             db.commit()
             return expired
 
     while True:
         await asyncio.sleep(every)
-        try:
-            expired = await asyncio.to_thread(run_once)
-            if expired:
-                log.info("%s reservations expired.", expired)
-        except Exception:  # noqa: BLE001
-            log.exception("Could not expire overdue redemptions")
+        jobs = (
+            (redemptions.expire_overdue, "reservations expired"),
+            (payments.expire_overdue, "KHQR payments expired"),
+            (payments.catch_late, "late KHQR payments found (refund due)"),
+        )
+        for expire, what in jobs:
+            try:
+                expired = await asyncio.to_thread(run_once, expire)
+                if expired:
+                    log.info("%s %s.", expired, what)
+            except Exception:  # noqa: BLE001
+                log.exception("Background job failed: %s", what)
 
 
 @contextlib.asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     every = get_settings().expire_redemptions_every
-    task = asyncio.create_task(_expire_redemptions_forever(every)) if every > 0 else None
+    task = asyncio.create_task(_expire_overdue_forever(every)) if every > 0 else None
     yield
     if task:
         task.cancel()
