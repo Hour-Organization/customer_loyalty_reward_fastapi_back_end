@@ -3,7 +3,10 @@
     migrate              apply the database migrations
     seed                 add the demo data (safe to run more than once)
     fresh                drop every table, migrate and seed
-    setup                migrate, and seed the demo data if the database has none yet (docker compose runs this)
+    setup                migrate, and seed the demo data if the database has none yet (docker compose runs this);
+                         also loads the postal areas if there are none
+    import-postal-codes  load Cambodia's provinces, districts and communes from app/data/cambodia_postal_codes.csv
+                         (safe to run more than once: adds new areas and renames changed ones)
     expire-redemptions   refund reservations whose time ran out (the scheduler runs this every 5 minutes)
     expire-payments      cancel orders whose KHQR was left unpaid, and mark late KHQR payments for a refund
                          (the scheduler runs this every 5 minutes)
@@ -54,15 +57,35 @@ def setup() -> None:
     from sqlalchemy import func, select
 
     from app.database import SessionLocal
-    from app.models import Tier
+    from app.models import Province, Tier
 
     migrate()
     with SessionLocal() as db:
         empty = not db.scalar(select(func.count(Tier.id)))
+        no_postal_areas = not db.scalar(select(func.count(Province.id)))
     if empty:
         seed()
     else:
         print("Data found; skipped seeding.")
+        if no_postal_areas:
+            import_postal_codes()
+
+
+def import_postal_codes() -> None:
+    from app.database import SessionLocal
+    from app.services.postal_codes import PostalCodeError
+    from app.services.postal_codes import import_postal_codes as run
+
+    with SessionLocal() as db:
+        try:
+            result = run(db)
+        except PostalCodeError as error:
+            sys.exit(f"Could not import the postal codes: {error}")
+        db.commit()
+    print(
+        f"Postal areas: {result.provinces} provinces, {result.districts} districts, {result.communes} communes "
+        f"({result.added} added, {result.updated} updated)."
+    )
 
 
 def expire_redemptions() -> None:
@@ -109,6 +132,7 @@ COMMANDS = {
     "seed": seed,
     "fresh": fresh,
     "setup": setup,
+    "import-postal-codes": import_postal_codes,
     "expire-redemptions": expire_redemptions,
     "expire-payments": expire_payments,
     "check-bakong": check_bakong,

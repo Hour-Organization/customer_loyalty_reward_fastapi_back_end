@@ -1,6 +1,7 @@
 """Database tables, following the same schema as the Laravel API (the "Assignment Ecommerce" ERD).
 
 Commerce: categories, products, product_images, carts, orders, payments, shipments, addresses.
+Postal areas (not in the Laravel API): provinces, districts, communes.
 Product stock: warehouses, inventories, stock_movements, suppliers, purchase_orders.
 Loyalty & rewards: tiers, tier_histories, loyalty_transactions, campaigns, badges, referrals, rewards
 with their own stock ledger (reward_variants, reward_stock_items, stock_locations, reward_stock_movements,
@@ -316,6 +317,43 @@ class Address(Timestamps, Base):
     city: Mapped[str] = mapped_column(String(255))
     country: Mapped[str] = mapped_column(String(255))
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+# Cambodia Post's postal areas (app/data/cambodia_postal_codes.csv, loaded by `python -m app.cli import-postal-codes`).
+# Codes are six digits: PP0000 a province, PPDD00 a district, PPDDCC a commune.
+
+
+class Province(Timestamps, Base):
+    __tablename__ = "provinces"
+
+    code: Mapped[str] = mapped_column(String(6), unique=True)
+    name: Mapped[str] = mapped_column(String(255))
+    name_kh: Mapped[str] = mapped_column(String(255))
+
+    districts: Mapped[list["District"]] = relationship(back_populates="province", order_by="District.code")
+
+
+class District(Timestamps, Base):
+    __tablename__ = "districts"
+
+    province_id: Mapped[int] = fk("provinces.id", "CASCADE", index=True)
+    code: Mapped[str] = mapped_column(String(6), unique=True)
+    name: Mapped[str] = mapped_column(String(255))
+    name_kh: Mapped[str] = mapped_column(String(255))
+
+    province: Mapped[Province] = relationship(back_populates="districts")
+    communes: Mapped[list["Commune"]] = relationship(back_populates="district", order_by="Commune.code")
+
+
+class Commune(Timestamps, Base):
+    __tablename__ = "communes"
+
+    district_id: Mapped[int] = fk("districts.id", "CASCADE", index=True)
+    code: Mapped[str] = mapped_column(String(6), unique=True)
+    name: Mapped[str] = mapped_column(String(255))
+    name_kh: Mapped[str] = mapped_column(String(255))
+
+    district: Mapped[District] = relationship(back_populates="communes")
 
 
 class Referral(Timestamps, Base):

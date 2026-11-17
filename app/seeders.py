@@ -34,6 +34,7 @@ from app.models import (
 )
 from app.services import orders, product_stock
 from app.services.loyalty import record_points
+from app.services.postal_codes import import_postal_codes
 
 STOCK_PAGES = ["stock-alerts", "stock", "stock-movements", "fulfillment", "stocktake", "stock-reports", "suppliers"]
 
@@ -447,4 +448,5 @@ def seed(db: Session) -> None:
     seed_reward_stock(db, staff)
     seed_referrals(db)
     seed_orders(db)
+    import_postal_codes(db)
     db.commit()
