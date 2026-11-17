@@ -37,8 +37,11 @@ Demo accounts (all with the password `password`):
 
 ```bash
 docker compose up --build
-docker compose exec api python -m app.cli seed
 ```
+
+The `api` service migrates on start and seeds the demo data into an empty database, so registration and the
+demo logins work straight away. Existing data is left alone. The image on its own only migrates, so a
+deployment never gets the demo accounts.
 
 ## Commands
 
@@ -47,6 +50,7 @@ docker compose exec api python -m app.cli seed
 | `python -m app.cli migrate` | Apply the Alembic migrations |
 | `python -m app.cli seed` | Add the demo data (safe to run again) |
 | `python -m app.cli fresh` | Drop every table, migrate and seed |
+| `python -m app.cli setup` | Migrate, then seed only if there are no tiers yet (what `docker compose` runs) |
 | `python -m app.cli expire-redemptions` | Refund reservations whose time ran out |
 | `pytest` | Run the tests (in-memory SQLite) |
 | `ruff check app tests` | Lint |

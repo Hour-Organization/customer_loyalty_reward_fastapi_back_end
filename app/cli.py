@@ -3,6 +3,7 @@
     migrate              apply the database migrations
     seed                 add the demo data (safe to run more than once)
     fresh                drop every table, migrate and seed
+    setup                migrate, and seed the demo data if the database has none yet (docker compose runs this)
     expire-redemptions   refund reservations whose time ran out (the scheduler runs this every 5 minutes)
 """
 
@@ -46,6 +47,21 @@ def fresh() -> None:
     seed()
 
 
+def setup() -> None:
+    from sqlalchemy import func, select
+
+    from app.database import SessionLocal
+    from app.models import Tier
+
+    migrate()
+    with SessionLocal() as db:
+        empty = not db.scalar(select(func.count(Tier.id)))
+    if empty:
+        seed()
+    else:
+        print("Data found; skipped seeding.")
+
+
 def expire_redemptions() -> None:
     from app.database import SessionLocal
     from app.services.redemptions import expire_overdue
@@ -56,7 +72,7 @@ def expire_redemptions() -> None:
     print(f"{expired} reservations expired.")
 
 
-COMMANDS = {"migrate": migrate, "seed": seed, "fresh": fresh, "expire-redemptions": expire_redemptions}
+COMMANDS = {"migrate": migrate, "seed": seed, "fresh": fresh, "setup": setup, "expire-redemptions": expire_redemptions}
 
 
 def main(argv: list[str] | None = None) -> None:

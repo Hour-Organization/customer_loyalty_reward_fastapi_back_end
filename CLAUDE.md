@@ -10,7 +10,7 @@ the Laravel API had them. When in doubt, read the Laravel controller, form reque
 - Tests: `.venv/bin/pytest` (in-memory SQLite; one file: `.venv/bin/pytest tests/test_stock.py`)
 - Lint: `.venv/bin/ruff check app tests`
 - Run: `.venv/bin/uvicorn app.main:app --reload --port 8000` (docs at `/docs`)
-- Data: `.venv/bin/python -m app.cli migrate | seed | fresh | expire-redemptions`
+- Data: `.venv/bin/python -m app.cli migrate | seed | fresh | setup | expire-redemptions`
 - New migration after a model change: `.venv/bin/alembic revision --autogenerate -m "..."`
 
 ## Conventions

@@ -28,5 +28,9 @@ addopts = "-q -p no:warnings"
 [tool.ruff]
 line-length = 130
 
+[tool.ruff.lint]
+# Pinned so newer ruff releases with broader defaults do not change what passes.
+select = ["E4", "E7", "E9", "F", "I"]
+
 [tool.ruff.lint.isort]
 known-third-party = ["alembic"]

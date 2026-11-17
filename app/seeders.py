@@ -147,6 +147,22 @@ PRODUCTS = [
     ("PRD-0012", "Accessories", "Traditional Khmer Pottery", "ភាជន៍ប្រឡោះ", 28, "1.5", False, "photo-1565193566173-7a0ee3dbe261"),
 ]
 
+# Storefront copy for the demo products, keyed by name. Seeding fills a description only when a product has none.
+PRODUCT_DESCRIPTIONS = {
+    "Kampot Pepper Coffee": "Premium Cambodian coffee blended with authentic Kampot pepper. Bold, aromatic, and uniquely local.",
+    "Khmer Snack Variety Box": "A curated box of traditional Cambodian snacks: dried mango, banana chips, coconut candy, and more.",
+    "Silk Krama Scarf": "Traditional Cambodian krama woven from pure silk. Wear it as a scarf, headband, or sarong.",
+    "Jasmine Rice (5kg)": "Phka Malis jasmine rice, Cambodia's award-winning fragrant white rice. Grown in Takeo province.",
+    "Coconut Body Lotion": "Natural body lotion made with Cambodian coconut oil and lemongrass. Deeply moisturising.",
+    "Angkor Craft Beer 6-Pack": "Cambodia's iconic Angkor beer. Crisp and refreshing, perfect for a warm Phnom Penh evening.",
+    "Wireless Earbuds": "Compact wireless earbuds with 20-hour battery life. Perfect for commuting through Phnom Penh.",
+    "Dried Mango Strips": "Sun-dried Cambodian mango strips. Naturally sweet with no added sugar. Sourced from Kampong Speu.",
+    "Lemongrass Essential Oil": "Pure lemongrass oil extracted on Cambodian farms. Great for aromatherapy and skin care.",
+    "Cambodian Coffee Drip Bag Box": "Single-serve drip coffee bags from the Mondulkiri highlands. Rich, dark roast with chocolate notes.",
+    "Phone Stand (Bamboo)": "Handcrafted bamboo phone stand made by local artisans in Siem Reap. Eco-friendly and stylish.",
+    "Traditional Khmer Pottery": "Hand-thrown clay pottery in traditional Khmer designs. A unique home decor piece and cultural gift.",
+}
+
 LOCATIONS = [
     {"name": "Phnom Penh Central Warehouse", "name_kh": "ឃ្លាំងកណ្ដាលភ្នំពេញ", "type": "warehouse"},
     {"name": "Siem Reap Store", "name_kh": "ហាងសៀមរាប", "type": "store"},
@@ -304,6 +320,8 @@ def seed_catalog(db: Session) -> None:
             },
             include_deleted=True,
         )
+        if not product.description:
+            product.description = PRODUCT_DESCRIPTIONS.get(name)
         # Demo covers are external URLs; staff can replace them with uploads.
         if first(db, ProductImage, product_id=product.id, sort_order=0) is None:
             db.add(ProductImage(product_id=product.id, sort_order=0, path=unsplash(photo, "w=800&h=600")))

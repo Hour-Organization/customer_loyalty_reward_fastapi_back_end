@@ -3,6 +3,7 @@ import tempfile
 
 # Settings are read once, so the test environment is set before the app is imported.
 os.environ.update(
+    APP_DEBUG="false",
     DATABASE_URL="sqlite://",
     BCRYPT_ROUNDS="4",
     EXPIRE_REDEMPTIONS_EVERY="0",

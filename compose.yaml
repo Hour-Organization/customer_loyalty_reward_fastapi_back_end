@@ -1,6 +1,8 @@
 services:
   api:
     build: .
+    # Local development: also seed the demo data into a new, empty database. The image alone only migrates.
+    command: ["sh", "-c", "python -m app.cli setup && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
     ports:
       - "${APP_PORT:-8000}:8000"
     environment:

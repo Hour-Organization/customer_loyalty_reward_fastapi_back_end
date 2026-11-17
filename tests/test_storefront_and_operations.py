@@ -210,3 +210,40 @@ def test_the_seeded_ledger_chains_to_each_customers_balance(db):
             assert row.balance_before == balance
             balance = row.balance_after
         assert balance == customer.points_balance
+
+
+# ---------------------------------------------------------------- Settings
+
+
+def test_the_expiry_interval_takes_seconds_or_a_unit():
+    from app.config import Settings
+
+    every = {value: Settings(expire_redemptions_every=value).expire_redemptions_every for value in ("300", "90s", "5m", "1h", "0")}
+    assert every == {"300": 300, "90s": 90, "5m": 300, "1h": 3600, "0": 0}
+
+
+def test_setup_seeds_an_empty_database_once(db, monkeypatch):
+    from app import cli
+    from app.models import Tier
+
+    monkeypatch.setattr(cli, "migrate", lambda: None)
+    cli.setup()
+    db.query(Tier).filter(Tier.name == "Bronze").update({"multiplier": Decimal("1.1")})
+    db.commit()
+    cli.setup()
+    db.expire_all()
+    assert db.scalar(select(func.count(Tier.id))) == 4
+    assert db.scalar(select(Tier.multiplier).where(Tier.name == "Bronze")) == Decimal("1.1")
+
+
+def test_seeded_products_have_descriptions_and_keep_edited_ones(db):
+    from app.models import Product
+
+    seed(db)
+    assert all(db.scalars(select(Product.description)))
+    coffee = db.scalar(select(Product).where(Product.name == "Kampot Pepper Coffee"))
+    coffee.description = "Written by staff"
+    db.commit()
+    seed(db)
+    db.expire_all()
+    assert db.scalar(select(Product.description).where(Product.name == "Kampot Pepper Coffee")) == "Written by staff"
